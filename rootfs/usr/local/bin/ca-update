@@ -4,11 +4,6 @@
 # Script to Update the CA-Certificates
 ############################################################
 
-echo "Updating Root CA's from the Alpine Repository"
-
-# Update CA-Certificates Package
-apk update --no-cache ca-certificates
-
 # Get custom Certificates
 if [ -d "/etc/ssl/certs_custom" ]; then
 	echo "Found custom Certificates!"
