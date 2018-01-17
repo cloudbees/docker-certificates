@@ -47,6 +47,8 @@ RUN echo "Starting the build ..." &&\
 	apk add --update &&\
 	# Package Install
 	apk add --no-cache $PACKAGES &&\
+	# Fix certificates setup
+	sed -e 's/ca-anchors/certificates/' -i /etc/ca-certificates/update.d/java-cacerts && \
 	###
 	# CleanUp
 	###
