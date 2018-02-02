@@ -1,4 +1,5 @@
 #!/bin/bash -eu
+
 build() {
     local t="${1:?}"
     docker build -t $t .
@@ -20,7 +21,7 @@ generate_certificate_custom_ca() {
 find_cert_cn() {
     local container="${1:?}"
     local cn="${2:?}"
-    if docker run -it --rm \
+    if docker run --rm \
         --volumes-from $container \
         $TAG \
         trust list | grep -A 2 -B 2 "$cn"; then
@@ -35,7 +36,7 @@ find_cert_cn() {
 find_java_cacert_cn() {
     local container="${1:?}"
     local cn="${2:?}"
-    if docker run -it --rm \
+    if docker run --rm \
         --volumes-from $container \
         openjdk:alpine \
         keytool -list -keystore /etc/ssl/certs/java/cacerts -storepass changeit -alias "$cn"; then
@@ -50,22 +51,22 @@ find_java_cacert_cn() {
 reset_cert_volume() {
     local name="${1:?}"
     docker rm $name || true
-    echo "Creating $name volume"
+    echo "Creating $name container"
     docker create --name $name $TAG
 }
 
 add_custom_certificates() {
     local container="${1:?}"
     local certs="${2:?}"
-    docker run -it --rm \
+    docker cp ${certs}/ca.crt ${container}:/usr/local/share/ca-certificates/ca.crt
+    docker cp ${certs}/server.crt ${container}:/usr/local/share/ca-certificates/server.crt
+    docker run --rm \
       --volumes-from $container \
-      -v ${certs}/ca.crt:/etc/ssl/certs_custom/ca.pem \
-      -v ${certs}/server.crt:/etc/ssl/certs_custom/server.pem \
       $TAG ca-update
 }
 
 TAG=docker-certificates:for-test
-CERT_VOLUME_NAME=cert
+CERT_VOLUME_NAME=docker-certificates-cert
 cacn="My Custom CA"
 cn="acme.corp"
 
