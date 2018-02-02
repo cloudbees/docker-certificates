@@ -8,3 +8,5 @@
 *.ipr
 *.iws
 .idea/
+
+tmp/certs/
