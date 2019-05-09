@@ -3,7 +3,7 @@
 ############################################################
 
 # Set the base image
-FROM alpine:3.6
+FROM alpine:3.9
 
 # About the Maintainer
 MAINTAINER Philipp Heuer <docker@philippheuer.me>
