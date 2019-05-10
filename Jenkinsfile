@@ -32,7 +32,7 @@ def dockerTag(def img, String dest) {
     return docker.image(dest)
 }
 
-def tag = "cloudbees-pse-${env.BRANCH_NAME}/$imageName:${env.BUILD_NUMBER}"
+def tag = "cloudbees/$imageName:${env.BUILD_NUMBER}"
 currentBuild.displayName = "#${currentBuild.number} (${tag})"
 def dockerImg = docker.image(tag)
 
