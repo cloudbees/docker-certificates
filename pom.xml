@@ -1,0 +1,91 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.cloudbees</groupId>
+        <artifactId>cloudbees-internal-parent</artifactId>
+        <version>7</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.cloudbees.tiger</groupId>
+    <artifactId>docker-certificates</artifactId>
+    <version>DEVELOPMENT</version>
+    <packaging>docker-build</packaging>
+
+    <name>docker-certificates image</name>
+
+    <properties>
+        <dashBranch></dashBranch>
+        <!-- Registry to publish to. If empty, publishes to dockerhub. Otherwise must end with a trailing forward slash. -->
+        <dockerRegistry>docker.cloudbees.com/</dockerRegistry>
+        <dockerOwner>cloudbees-pse${dashBranch}</dockerOwner>
+        <dockerTag>${project.version}</dockerTag>
+
+        <dockerImage>${dockerRegistry}${dockerOwner}/${project.artifactId}</dockerImage>
+        <!-- run -->
+        <containerName>docker-certificates</containerName>
+    </properties>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <properties>
+                <dockerRegistry></dockerRegistry>
+                <dockerOwner>cloudbees</dockerOwner>
+                <dockerTag>${project.version}</dockerTag>
+            </properties>
+        </profile>
+    </profiles>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.0.2</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>0.15.11</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <verbose>true</verbose>
+                    <images>
+                        <image>
+                            <name>${dockerImage}</name>
+                            <alias>${containerName}</alias>
+                            <build>
+                                <dockerFileDir>${project.basedir}</dockerFileDir>
+                                <compression>gzip</compression>
+                                <tags>
+                                    <tag>${dockerTag}</tag>
+                                </tags>
+                            </build>
+                            <run>
+                                <namingStrategy>alias</namingStrategy>
+                            </run>
+                        </image>
+                    </images>
+                </configuration>
+
+                <dependencies>
+                    <!-- Workaround compatibility problem with maven-deluxe -->
+                    <dependency>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>jcl-over-slf4j</artifactId>
+                        <version>1.7.5</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-jdk14</artifactId>
+                        <version>1.7.5</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
+</project>
