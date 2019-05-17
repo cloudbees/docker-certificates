@@ -28,7 +28,7 @@ def loginToDockerRegistry(String registry, String registryCredentials) {
 }
 
 def dockerTag(def img, String dest) {
-    sh "docker tag ${dest} ${img.id}"
+    sh "docker tag ${img.imageName()} ${dest}"
     return docker.image(dest)
 }
 
@@ -37,13 +37,13 @@ currentBuild.displayName = "#${currentBuild.number} (${tag})"
 def dockerImg = docker.image(tag)
 
 timestamps {
-    node('pse-ci') {
-        withDir('work') {
-            stage('Checkout') {
-                checkout scm
-            }
-            stage('Build') {
-                wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
+    ansiColor('xterm') {
+        node('pse-ci') {
+            withDir('work') {
+                stage('Checkout') {
+                    checkout scm
+                }
+                stage('Build') {
                     loginToDockerRegistry(registry, registryCredentials)
                     withMaven(
                             mavenSettingsConfig: 'maven-settings-nexus-internal-ci-release-jobs',
@@ -51,67 +51,66 @@ timestamps {
                         sh "mvn -B -U clean install -Ddocker.imagePullPolicy=always -DdockerImage=${tag}"
                     }
                 }
-            }
-
-            stage('Test') {
-                sh "./test.sh"
-            }
-            stage('Deploy') {
-                docker.withRegistry(registry, registryCredentials) {
-                    dockerImg.push()
+                stage('Test') {
+                    sh "./test.sh"
+                }
+                stage('Deploy') {
+                    docker.withRegistry(registry, registryCredentials) {
+                        dockerImg.push()
+                    }
                 }
             }
         }
-    }
-    def releaseVersion = null
+        def releaseVersion = null
 
-    stage('Prompt for release') {
-        checkpoint 'Before prompting for release'
-        try {
-            timeout(time: 2, unit: 'HOURS') {
-                releaseVersion = input(
-                        message: 'Do you want to release the docker image ?',
-                        parameters: [
-                                string(
-                                        name: 'version',
-                                        description: 'Tag that will be used to release the image'
-                                )
-                        ]
-                )
+        stage('Prompt for release') {
+            checkpoint 'Before prompting for release'
+            try {
+                timeout(time: 2, unit: 'HOURS') {
+                    releaseVersion = input(
+                            message: 'Do you want to release the docker image ?',
+                            parameters: [
+                                    string(
+                                            name: 'version',
+                                            description: 'Tag that will be used to release the image'
+                                    )
+                            ]
+                    )
+                }
+            } catch (err) {
+                // Timeout or abort should succeed the build
+                currentBuild.result = 'SUCCESS'
             }
-        } catch (err) {
-            // Timeout or abort should succeed the build
-            currentBuild.result = 'SUCCESS'
         }
-    }
-    if (releaseVersion) {
-        node('pse-ci') {
-            stage('Tag') {
-                checkout scm
-                sshagent(['github-ssh']) {
-                    sh """
+        if (releaseVersion) {
+            node('pse-ci') {
+                stage('Tag') {
+                    checkout scm
+                    withGitCredentials(credentialsId: 'github-https', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN') {
+                        sh """
                     git tag -f $releaseVersion
                     git push -f origin $releaseVersion
                 """
-                }
+                    }
 
-            }
-            stage('Release') {
-                def releaseTag = "cloudbees/$imageName:${releaseVersion}"
-                currentBuild.displayName = "#${currentBuild.number} RELEASE (${releaseTag})"
-                def releaseImg
-                docker.withRegistry(registry, registryCredentials) {
-                    dockerImg.pull()
-                    releaseImg = dockerTag(dockerImg, releaseTag)
                 }
-                docker.withRegistry(releaseRegistry, releaseRegistryCredentials) {
-                    releaseImg.push()
+                stage('Release') {
+                    def releaseTag = "cloudbees/$imageName:${releaseVersion}"
+                    currentBuild.displayName = "#${currentBuild.number} RELEASE (${releaseTag})"
+                    def releaseImg
+                    docker.withRegistry(registry, registryCredentials) {
+                        dockerImg.pull()
+                        releaseImg = dockerTag(dockerImg, releaseTag)
+                    }
+                    docker.withRegistry(releaseRegistry, releaseRegistryCredentials) {
+                        releaseImg.push()
+                    }
                 }
             }
-        }
-        // Update Tiger
-        stage('Update Tiger') {
-            updateTiger app: 'docker-certificates', version: releaseVersion
+            // Update Tiger
+            stage('Update Tiger') {
+                updateTiger app: 'docker-certificates', version: releaseVersion
+            }
         }
     }
 }
